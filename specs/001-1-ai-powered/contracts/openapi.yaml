@@ -1,0 +1,51 @@
+openapi: 3.0.3
+info:
+  title: AI-Powered Text Moderation API
+  version: 0.1.0
+servers:
+  - url: http://localhost:3000
+paths:
+  /moderate:
+    post:
+      summary: Submit content for moderation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                 content:
+                   type: string
+                   description: Content to be moderated
+                userId:
+                  type: string
+                  description: ID of the user submitting content
+                timestamp:
+                  type: string
+                  format: date-time
+                  description: Submission timestamp
+              required:
+                 - content
+                - userId
+                - timestamp
+      responses:
+        '200':
+          description: Moderation result
+          content:
+            application/json:
+              schema:
+                 type: object
+                 properties:
+                   flagged:
+                     type: boolean
+                     description: Whether the content was flagged
+                   reasons:
+                     type: array
+                     items:
+                       type: string
+                     description: List of reasons for flagging
+                   severity:
+                     type: string
+                     enum: [low, medium, high]
+                     description: Severity of the flagged content
