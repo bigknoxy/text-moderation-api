@@ -8,13 +8,17 @@ describe('POST /moderate contract', () => {
       content: 'This is a test message with hate speech.',
       timestamp: Date.now(),
     };
-    // Simulate API call (to be implemented)
-    const result = await moderate(input);
-    expect(result).toHaveProperty('flagged');
-    expect(result).toHaveProperty('reasons');
-    expect(Array.isArray(result.reasons)).toBe(true);
-    // Should flag hate speech
-    expect(result.flagged).toBe(true);
-    expect(result.reasons).toContain('hate_speech');
+    const timeoutPromise = new Promise((_, reject) =>
+      setTimeout(() => reject(new Error('Test timed out')), 15000)
+    );
+    const resultPromise = (async () => {
+      const result = await moderate(input);
+      expect(result).toHaveProperty('flagged');
+      expect(result).toHaveProperty('reasons');
+      expect(Array.isArray(result.reasons)).toBe(true);
+      expect(result.flagged).toBe(true);
+      expect(result.reasons).toContain('hate_speech');
+    })();
+    await Promise.race([resultPromise, timeoutPromise]);
   });
 });
