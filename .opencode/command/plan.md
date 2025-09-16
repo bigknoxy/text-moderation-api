@@ -1,7 +1,7 @@
 ---
 name: plan
 description: "Plan how to implement the specified feature. This is the second step in the Spec-Driven Development lifecycle."
-model: github-copilot/gpt-4.1
+model: github-copilot/gpt-5-mini
 temperature: 0.1
 ---
 
