@@ -1,0 +1,81 @@
+openapi: 3.0.3
+info:
+  title: Text Moderation - API Authentication (MVP Contracts)
+  version: 0.1.0
+  description: OpenAPI contracts for API key auth and rate-limiting behaviors (MVP)
+servers:
+  - url: http://localhost:3000
+paths:
+  /v1/protected/sample:
+    get:
+      summary: Sample protected endpoint requiring API key
+      security:
+        - ApiKeyAuth: []
+      responses:
+        '200':
+          description: Successful request within quota
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+        '401':
+          description: Unauthorized (missing or invalid API key)
+        '429':
+          description: Too Many Requests (rate limit exceeded)
+          headers:
+            Retry-After:
+              description: Estimated seconds until tokens available
+              schema:
+                type: integer
+  /v1/admin/keys:
+    post:
+      summary: Create a new API key (Admin CLI parity)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                quota_profile:
+                  type: string
+                metadata:
+                  type: object
+      responses:
+        '201':
+          description: Created; body contains key_id and secret (secret shown once)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  key_id:
+                    type: string
+                  secret:
+                    type: string
+                    description: Secret shown only once
+        '400':
+          description: Bad request
+  /v1/admin/keys/{key_id}:
+    delete:
+      summary: Revoke an API key
+      parameters:
+        - name: key_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Revoked
+        '404':
+          description: Not found
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: x-api-key
