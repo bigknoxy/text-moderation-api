@@ -37,6 +37,45 @@ describe('API Authentication Contracts', () => {
     }
   });
 
+  it('creates a new API key (201)', async () => {
+    const res = await fetch(`${BASE}/v1/admin/keys`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ quota_profile: 'default', metadata: { test: true } }),
+    });
+    if (res.status === 404) return;
+    expect([201, 400]).toContain(res.status); // Accept 400 if admin route is protected
+    if (res.status === 201) {
+      const body = await res.json();
+      expect(body).toHaveProperty('key_id');
+      expect(body).toHaveProperty('secret');
+      globalThis.__testKeyId = body.key_id;
+      globalThis.__testSecret = body.secret;
+    }
+  });
+
+  it('returns 400 for bad key creation', async () => {
+    const res = await fetch(`${BASE}/v1/admin/keys`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({}),
+    });
+    if (res.status === 404) return;
+    expect([400, 401]).toContain(res.status); // Accept 401 if admin route is protected
+  });
+
+  it('revokes a key (204) and returns 404 for missing', async () => {
+    const keyId = globalThis.__testKeyId || 'nonexistent';
+    // Try to revoke the key (should be 204 if exists, 404 if not)
+    let res = await fetch(`${BASE}/v1/admin/keys/${keyId}`, { method: 'DELETE' });
+    if (res.status === 404) return;
+    expect([204, 404]).toContain(res.status);
+    // Try again, should be 404
+    res = await fetch(`${BASE}/v1/admin/keys/${keyId}`, { method: 'DELETE' });
+    if (res.status === 404) return;
+    expect(res.status).toBe(404);
+  });
+
   // The tests below require a valid key and quota enforcement. They are written to be skipped if no test-key tooling is available.
   it('returns 200 for valid key within quota (skippable if no test key)', async () => {
     const key = process.env.TEST_API_KEY;

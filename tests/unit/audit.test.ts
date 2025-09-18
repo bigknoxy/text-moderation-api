@@ -31,10 +31,17 @@ describe('audit emission', () => {
     const res = await auth(req);
     expect(res.allowed).toBe(true);
 
-    // small delay to allow async append
-    await new Promise((r) => setTimeout(r, 50));
-
-    const txt = await fs.readFile(tmp, 'utf-8');
+    // Wait up to 500ms for async append (poll every 20ms)
+    let txt = '';
+    for (let i = 0; i < 25; i++) {
+      try {
+        txt = await fs.readFile(tmp, 'utf-8');
+        if (txt.trim().length > 0) break;
+      } catch (e) {
+        // file not yet written
+      }
+      await new Promise((r) => setTimeout(r, 20));
+    }
     expect(txt.trim().length).toBeGreaterThan(0);
 
     const first = JSON.parse(txt.trim().split('\n')[0]);
