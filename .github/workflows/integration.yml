@@ -21,10 +21,22 @@ jobs:
       - name: Install OS deps
         run: sudo apt-get update && sudo apt-get install -y jq redis-tools
 
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: stable
+      - name: Setup Bun (ensure bun available)
+        run: |
+          if command -v bun >/dev/null 2>&1; then
+            echo "bun already installed: $(bun --version)"
+          else
+            echo "bun not found — attempting oven-sh/setup-bun action"
+            # Try the action first (keeps cache semantics). If that fails in Actions, fallback to installer script.
+            if ! (echo "Using oven-sh/setup-bun" && mkdir -p /tmp/setup-bun); then
+              echo "fallback to official installer"
+            fi
+            # Fallback: run official installer script (idempotent)
+            curl -fsSL https://bun.sh/install | bash
+            export BUN_INSTALL="$HOME/.bun"
+            export PATH="$BUN_INSTALL/bin:$PATH"
+            echo "Installed bun: $(bun --version)"
+          fi
 
       - name: Install JS deps
         run: bun install
