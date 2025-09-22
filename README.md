@@ -69,10 +69,40 @@ bun run index.ts
 
 ## ⚙️ Environment Variables
 
-| Variable   | Description                    | Example                  |
-| ---------- | ------------------------------ | ------------------------ |
-| HF_API_KEY | Hugging Face Inference API key | `hf_xxx`                 |
-| REDIS_URL  | Redis connection string        | `redis://localhost:6379` |
+| Variable                     | Description                                                                                                                                                                                          | Example                  |
+| ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------ |
+| HF_API_KEY                   | Hugging Face Inference API key                                                                                                                                                                       | `hf_xxx`                 |
+| REDIS_URL                    | Redis connection string                                                                                                                                                                              | `redis://localhost:6379` |
+| FORCE_IN_MEMORY_TOKEN_BUCKET | When truthy, force the token-bucket to use the in-memory fallback and skip Redis. Default: false. Intended for CI/tests to make rate-limit logic deterministic and avoid requiring a Redis instance. | `1`                      |
+| REDIS_CALL_TIMEOUT_MS        | Redis call timeout in milliseconds for token-bucket operations before falling back to in-memory. Default: `200`. Lower values speed test/CI fallback; higher values allow slow Redis more time.      | `200`                    |
+
+Examples:
+
+Bash:
+
+```bash
+# Run unit tests using in-memory token bucket
+FORCE_IN_MEMORY_TOKEN_BUCKET=1 bun test
+
+# Run integration tests against local Redis
+REDIS_URL=redis://localhost:6379 bun test tests/integration
+```
+
+Windows PowerShell:
+
+```powershell
+$env:FORCE_IN_MEMORY_TOKEN_BUCKET = '1'; bun test
+```
+
+Windows CMD:
+
+```cmd
+set FORCE_IN_MEMORY_TOKEN_BUCKET=1 && bun test
+```
+
+Short note:
+
+- Consumers and integrators can check Redis readiness via isRedisReady() exported from src/services/auth/redisTokenBucket.ts to avoid attempting Redis-backed operations when Redis is not available.
 
 ---
 
@@ -118,6 +148,25 @@ docker compose up --build
 ```
 
 > Note: `timestamp` is required and should be an ISO8601 string. The response will include `flagged` (boolean), `reasons` (array of strings), and `severity` ("low", "medium", or "high").
+
+---
+
+## 🔑 API Authentication & Rate Limiting
+
+The platform supports robust API authentication and rate limiting for all endpoints:
+
+- **Key-based authentication**: Every API request must include a valid API key in the `x-api-key` header.
+- **Rate limiting**: Each key is subject to per-minute and per-day quotas, enforced at the middleware level.
+- **Audit logging**: All authentication attempts (success/failure) are logged for compliance and monitoring.
+- **Metrics**: Per-key usage and rate limit events are exposed via Prometheus metrics.
+- **Key management CLI**: Use the CLI to create, list, and revoke API keys (see [Key Manager CLI](cli/key-manager.ts)).
+
+**Learn more:**
+
+- [Quickstart: API Authentication](specs/002-1-api-authentication/quickstart.md)
+- [Feature Plan](specs/002-1-api-authentication/plan.md)
+- [Specification](specs/002-1-api-authentication/spec.md)
+- [OpenAPI Contract](specs/002-1-api-authentication/contracts/openapi.yaml)
 
 ---
 
@@ -185,9 +234,11 @@ We welcome contributions! Please:
 
 ## 🌟 Useful Links
 
-- [Quickstart Guide](specs/001-1-ai-powered/quickstart.md)
+- [Quickstart Guide: Moderation](specs/001-1-ai-powered/quickstart.md)
+- [Quickstart Guide: API Authentication](specs/002-1-api-authentication/quickstart.md)
 - [Architecture Plan](specs/001-1-ai-powered/plan.md)
-- [API Contract](specs/001-1-ai-powered/contracts/openapi.yaml)
+- [API Contract: Moderation](specs/001-1-ai-powered/contracts/openapi.yaml)
+- [API Contract: Authentication](specs/002-1-api-authentication/contracts/openapi.yaml)
 - [Tasks & Progress](specs/001-1-ai-powered/tasks.md)
 
 ---

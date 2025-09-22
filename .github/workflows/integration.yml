@@ -1,0 +1,70 @@
+name: Integration Tests
+
+on: [push, pull_request]
+
+jobs:
+  integration:
+    runs-on: ubuntu-latest
+    env:
+      FORCE_IN_MEMORY_TOKEN_BUCKET: '1'
+    services:
+      redis:
+        image: redis:7.0-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-retries 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install OS deps
+        run: sudo apt-get update && sudo apt-get install -y jq redis-tools
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: latest
+
+      - name: Install JS deps
+        run: bun install
+
+      - name: Wait for Redis
+        run: |
+          for i in {1..30}; do
+            if redis-cli -h 127.0.0.1 -p 6379 ping | grep -q PONG; then
+              echo "Redis ready"
+              break
+            fi
+            sleep 1
+          done
+
+      - name: Load Redis Lua script
+        run: |
+          sha=$(redis-cli -h 127.0.0.1 -p 6379 SCRIPT LOAD "$(cat src/services/auth/token_bucket.lua)")
+          echo "REDIS_LUA_SHA=$sha" >> $GITHUB_ENV
+
+      - name: Create TEST API key
+        run: |
+          secret=$(bun cli/key-manager.ts create --format json | jq -r .secretPlain)
+          echo "TEST_API_KEY=$secret" >> $GITHUB_ENV
+
+      - name: Start server
+        run: |
+          nohup bash -c "REDIS_LUA_SHA=${REDIS_LUA_SHA} TEST_API_KEY=${TEST_API_KEY} bun index.ts" > server.log 2>&1 &
+
+          for i in {1..30}; do
+            code=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:3000/openapi.yaml || echo "000")
+            if [ "$code" = "200" ] || [ "$code" = "404" ]; then
+              echo "Server ready"
+              break
+            fi
+            sleep 1
+          done
+
+      - name: Run tests
+        run: bun test
+        env:
+          TEST_API_KEY: ${{ env.TEST_API_KEY }}

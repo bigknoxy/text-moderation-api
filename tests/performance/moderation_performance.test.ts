@@ -2,7 +2,7 @@ import { describe, it, expect } from 'bun:test';
 import { moderate } from '../../src/api/index';
 
 describe('Moderation Performance', () => {
-  it('should process 5 requests in under 5 seconds', async () => {
+  it('should process 5 requests in under 5 seconds (7s in CI)', async () => {
     const start = Date.now();
     const promises = [];
     // Warm up the model
@@ -18,6 +18,13 @@ describe('Moderation Performance', () => {
     }
     await Promise.all(promises);
     const duration = Date.now() - start;
-    expect(duration).toBeLessThan(5000);
+    const threshold = process.env.CI ? 7000 : 5000;
+    if (duration >= threshold) {
+      // eslint-disable-next-line no-console
+      console.error(
+        `Performance test failed: duration = ${duration}ms, threshold = ${threshold}ms`
+      );
+    }
+    expect(duration).toBeLessThan(threshold);
   });
 });

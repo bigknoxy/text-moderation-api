@@ -32,3 +32,13 @@ report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
 
 # Finder (MacOS) folder config
 .DS_Store
+
+# Local test artifacts and keys
+# Keep `integration_keys.json` tracked for CI, but ignore other local test keys and logs
+data/cli_test_keys_*.json
+data/keys.json
+data/test_audit_*.log
+data/*.log
+
+# Local todo files
+.todo.*
