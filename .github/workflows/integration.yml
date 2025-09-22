@@ -5,6 +5,8 @@ on: [push, pull_request]
 jobs:
   integration:
     runs-on: ubuntu-latest
+    env:
+      FORCE_IN_MEMORY_TOKEN_BUCKET: '1'
     services:
       redis:
         image: redis:7.0-alpine
@@ -62,7 +64,7 @@ jobs:
             sleep 1
           done
 
-- name: Run tests
-         run: bun test
-         env:
-           TEST_API_KEY: ${{ env.TEST_API_KEY }}
+      - name: Run tests
+        run: bun test
+        env:
+          TEST_API_KEY: ${{ env.TEST_API_KEY }}
