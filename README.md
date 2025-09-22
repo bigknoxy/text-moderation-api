@@ -69,10 +69,40 @@ bun run index.ts
 
 ## ⚙️ Environment Variables
 
-| Variable   | Description                    | Example                  |
-| ---------- | ------------------------------ | ------------------------ |
-| HF_API_KEY | Hugging Face Inference API key | `hf_xxx`                 |
-| REDIS_URL  | Redis connection string        | `redis://localhost:6379` |
+| Variable                     | Description                                                                                                                                                                                          | Example                  |
+| ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------ |
+| HF_API_KEY                   | Hugging Face Inference API key                                                                                                                                                                       | `hf_xxx`                 |
+| REDIS_URL                    | Redis connection string                                                                                                                                                                              | `redis://localhost:6379` |
+| FORCE_IN_MEMORY_TOKEN_BUCKET | When truthy, force the token-bucket to use the in-memory fallback and skip Redis. Default: false. Intended for CI/tests to make rate-limit logic deterministic and avoid requiring a Redis instance. | `1`                      |
+| REDIS_CALL_TIMEOUT_MS        | Redis call timeout in milliseconds for token-bucket operations before falling back to in-memory. Default: `200`. Lower values speed test/CI fallback; higher values allow slow Redis more time.      | `200`                    |
+
+Examples:
+
+Bash:
+
+```bash
+# Run unit tests using in-memory token bucket
+FORCE_IN_MEMORY_TOKEN_BUCKET=1 bun test
+
+# Run integration tests against local Redis
+REDIS_URL=redis://localhost:6379 bun test tests/integration
+```
+
+Windows PowerShell:
+
+```powershell
+$env:FORCE_IN_MEMORY_TOKEN_BUCKET = '1'; bun test
+```
+
+Windows CMD:
+
+```cmd
+set FORCE_IN_MEMORY_TOKEN_BUCKET=1 && bun test
+```
+
+Short note:
+
+- Consumers and integrators can check Redis readiness via isRedisReady() exported from src/services/auth/redisTokenBucket.ts to avoid attempting Redis-backed operations when Redis is not available.
 
 ---
 

@@ -1,7 +1,3 @@
-// Set audit log path before any imports
-const auditPathGlobal = path.join(process.cwd(), 'data', `test_audit_${Date.now()}.log`);
-process.env.AUDIT_LOG_PATH = auditPathGlobal;
-
 import { describe, it, expect } from 'bun:test';
 import path from 'path';
 import { KeyStoreStatic } from '../../src/services/auth/keyStoreStatic';
@@ -16,17 +12,21 @@ describe('Auth integration (in-memory token bucket)', () => {
     const ak = await ks.createKey({ purpose: 'integration-test' });
     expect(ak.secretPlain).toBeTruthy();
 
-    // Set up unique audit log path
-    const auditPath = path.join(process.cwd(), 'data', `test_audit_${Date.now()}.log`);
-    process.env.AUDIT_LOG_PATH = auditPath;
-    await fs.mkdir(path.dirname(auditPath), { recursive: true });
-    await fs.rm(auditPath, { force: true }).catch(() => {});
+    // Use an in-memory audit logger stub to avoid file I/O timing issues in tests
+    const events: any[] = [];
+    const auditLogger = {
+      append(e: any) {
+        // synchronous push so fire-and-forget calls register immediately
+        events.push(e);
+        return Promise.resolve();
+      },
+    };
 
     // verify the raw secret works
     const ok = await ks.verifyKey(ak.secretPlain!);
     expect(ok).toBe(true);
 
-    const auth = createAuthMiddleware(ks, auditPath);
+    const auth = createAuthMiddleware(ks, auditLogger as any);
     // Seed in-memory bucket so we know starting tokens
     seedTestKey(ak.secretPlain!);
 
@@ -49,34 +49,12 @@ describe('Auth integration (in-memory token bucket)', () => {
     expect(res.headers).toBeDefined();
     expect(res.headers && res.headers['Retry-After']).toBeDefined();
 
-    // Wait for audit log file to exist and have 6 lines
-    let lines = [];
-    for (let i = 0; i < 20; i++) {
-      try {
-        const txt = await fs.readFile(auditPath, 'utf-8');
-        lines = txt
-          .trim()
-          .split('\n')
-          .map((l) => JSON.parse(l));
-        if (lines.length === 6) break;
-      } catch (e) {}
-      await new Promise((r) => setTimeout(r, 25));
-    }
-    if (lines.length !== 6) {
-      try {
-        const debugTxt = await fs.readFile(auditPath, 'utf-8');
-        // eslint-disable-next-line no-console
-        console.error('AUDIT LOG DEBUG:', auditPath, debugTxt);
-      } catch (e) {
-        // eslint-disable-next-line no-console
-        console.error('AUDIT LOG FILE NOT FOUND:', auditPath);
-      }
-    }
-    expect(lines.length).toBe(6);
-    expect(lines.filter((e) => e.allowed).length).toBe(5);
-    expect(lines.filter((e) => e.status === 429).length).toBe(1);
-    expect(lines[0].key).toBe(ak.secretPlain!);
-    expect(lines[0].path).toBe('/v1/protected/sample');
+    // Since we use synchronous in-memory logger, events should be available immediately
+    expect(events.length).toBe(6);
+    expect(events.filter((e) => e.allowed).length).toBe(5);
+    expect(events.filter((e) => e.status === 429).length).toBe(1);
+    expect(events[0].key).toBe(ak.secretPlain!);
+    expect(events[0].path).toBe('/v1/protected/sample');
 
     // METRICS CHECK
     const { getMetrics } = await import('../../src/services/metrics');
@@ -93,7 +71,9 @@ describe('Auth integration (in-memory token bucket)', () => {
   it('rejects invalid API key', async () => {
     const storePath = path.join(process.cwd(), 'data', 'integration_keys.json');
     const ks = new KeyStoreStatic(storePath);
-    const auth = createAuthMiddleware(ks);
+    const { AuditLogger } = await import('../../src/services/audit');
+    const auditLogger = new AuditLogger(''); // No file for negative test
+    const auth = createAuthMiddleware(ks, auditLogger);
     const req = new Request('http://localhost/v1/protected/sample', {
       headers: { 'x-api-key': 'not-a-real-key' },
     });
@@ -105,7 +85,9 @@ describe('Auth integration (in-memory token bucket)', () => {
   it('rejects missing API key', async () => {
     const storePath = path.join(process.cwd(), 'data', 'integration_keys.json');
     const ks = new KeyStoreStatic(storePath);
-    const auth = createAuthMiddleware(ks);
+    const { AuditLogger } = await import('../../src/services/audit');
+    const auditLogger = new AuditLogger(''); // No file for negative test
+    const auth = createAuthMiddleware(ks, auditLogger);
     const req = new Request('http://localhost/v1/protected/sample');
     const res = await auth(req);
     expect(res.allowed).toBe(false);

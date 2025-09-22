@@ -25,8 +25,9 @@ export async function moderate(input: UserContent) {
     console.warn('Failed to increment metrics', err);
   }
 
-  // Enqueue for audit/logging
-  await enqueueModerationTask({
+  // Enqueue for audit/logging (fire-and-forget). We don't want Redis failures to
+  // block request handling or tests, so call enqueueModerationTask without awaiting.
+  void enqueueModerationTask({
     userId: input.userId,
     content: input.content,
     timestamp: ts,

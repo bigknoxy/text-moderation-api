@@ -26,20 +26,36 @@ export async function classifyText(text: string, candidateLabels: string[]) {
     throw new Error('HF_API_KEY not set. For tests set USE_TEST_MOCKS=1.');
   }
 
-  const MODEL = process.env.HF_MODEL || 'unitary/toxic-bert';
+  const MODEL = process.env.HF_MODEL || 'facebook/bart-large-mnli';
   const client = new InferenceClient(HF_API_KEY);
 
-  const res = await client.zeroShotClassification({
-    model: MODEL,
-    inputs: text,
-    parameters: { candidate_labels: candidateLabels },
-  });
-
-  // Normalize various HF response shapes to an array of {label, score}
-  if (Array.isArray(res)) return res as any;
-  if (res && (res as any).labels && (res as any).scores) {
-    const r: any = res;
-    return r.labels.map((label: string, i: number) => ({ label, score: r.scores[i] }));
+  let res;
+  if (MODEL === 'unitary/toxic-bert') {
+    // Use textClassification for this model
+    res = await client.textClassification({
+      model: MODEL,
+      inputs: text,
+    });
+    // Map to {label, score} format
+    if (Array.isArray(res)) {
+      return res.map((r: any) => ({ label: r.label, score: r.score }));
+    }
+    if (res && (res as any).labels && (res as any).scores) {
+      const r: any = res;
+      return r.labels.map((label: string, i: number) => ({ label, score: r.scores[i] }));
+    }
+  } else {
+    // Use zeroShotClassification for general models
+    res = await client.zeroShotClassification({
+      model: MODEL,
+      inputs: text,
+      parameters: { candidate_labels: candidateLabels },
+    });
+    if (Array.isArray(res)) return res as any;
+    if (res && (res as any).labels && (res as any).scores) {
+      const r: any = res;
+      return r.labels.map((label: string, i: number) => ({ label, score: r.scores[i] }));
+    }
   }
 
   // Fallback: mark content as safe

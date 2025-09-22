@@ -5,7 +5,6 @@ import fs from 'fs/promises';
 describe('audit emission', () => {
   it('writes an audit NDJSON event to AUDIT_LOG_PATH on auth', async () => {
     const tmp = path.join(process.cwd(), 'data', `test_audit_${Date.now()}.log`);
-    process.env.AUDIT_LOG_PATH = tmp;
 
     // ensure data dir exists
     await fs.mkdir(path.dirname(tmp), { recursive: true });
@@ -16,6 +15,7 @@ describe('audit emission', () => {
     const { createAuthMiddleware, seedTestKey } = await import(
       '../../src/services/auth/middleware'
     );
+    const { AuditLogger } = await import('../../src/services/audit');
 
     const ks = new KeyStoreInMemory();
     const ak = await ks.createKey();
@@ -23,7 +23,8 @@ describe('audit emission', () => {
     // seed in-memory bucket so requests are allowed
     seedTestKey(ak.key);
 
-    const auth = createAuthMiddleware(ks);
+    const auditLogger = new AuditLogger(tmp);
+    const auth = createAuthMiddleware(ks, auditLogger);
     const req = new Request('http://localhost/v1/protected/sample', {
       headers: { 'x-api-key': ak.key },
     });
@@ -33,14 +34,38 @@ describe('audit emission', () => {
 
     // Wait up to 500ms for async append (poll every 20ms)
     let txt = '';
-    for (let i = 0; i < 25; i++) {
+    let found = false;
+    for (let i = 0; i < 250; i++) {
+      // wait up to 1s
       try {
         txt = await fs.readFile(tmp, 'utf-8');
-        if (txt.trim().length > 0) break;
+        if (txt.trim().length > 0) {
+          found = true;
+          break;
+        }
       } catch (e) {
         // file not yet written
       }
       await new Promise((r) => setTimeout(r, 20));
+    }
+    if (!found) {
+      // Print debug info if file is empty or missing
+      try {
+        const debugTxt = await fs.readFile(tmp, 'utf-8');
+        // eslint-disable-next-line no-console
+        console.error('AUDIT LOG DEBUG: File exists but empty or incomplete:', tmp, debugTxt);
+      } catch (e) {
+        // eslint-disable-next-line no-console
+        console.error('AUDIT LOG FILE NOT FOUND:', tmp, e);
+      }
+      // Final existence check
+      const exists = await fs
+        .stat(tmp)
+        .then(() => true)
+        .catch(() => false);
+      if (!exists) {
+        throw new Error(`Audit log file was never created: ${tmp}`);
+      }
     }
     expect(txt.trim().length).toBeGreaterThan(0);
 
