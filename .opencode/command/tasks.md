@@ -1,7 +1,7 @@
 ---
 name: tasks
 description: "Break down the plan into executable tasks. This is the third step in the Spec-Driven Development lifecycle."
-model: github-copilot/gpt-4.1
+model: github-copilot/gpt-5-mini
 temperature: 0.1
 ---
 
