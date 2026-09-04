@@ -39,3 +39,5 @@ c4fe1f004b04fcee742aa0b5a9e3c9ce4ff5790a:data/integration_keys.json:generic-api-
 c4fe1f004b04fcee742aa0b5a9e3c9ce4ff5790a:data/integration_keys.json:generic-api-key:269
 c4fe1f004b04fcee742aa0b5a9e3c9ce4ff5790a:data/integration_keys.json:generic-api-key:276
 c4fe1f004b04fcee742aa0b5a9e3c9ce4ff5790a:data/integration_keys.json:generic-api-key:94
+# specs quickstart placeholder "S3cr3tShownOnce" example
+47797e41ed6e78a230cf2e89a7703000de4162f5:specs/002-1-api-authentication/quickstart.md:curl-auth-header:31
