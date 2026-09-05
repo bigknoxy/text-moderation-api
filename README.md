@@ -121,6 +121,25 @@ docker compose up --build
 
 ---
 
+## 🔑 API Authentication & Rate Limiting
+
+The platform supports robust API authentication and rate limiting for all endpoints:
+
+- **Key-based authentication**: Every API request must include a valid API key in the `x-api-key` header.
+- **Rate limiting**: Each key is subject to per-minute and per-day quotas, enforced at the middleware level.
+- **Audit logging**: All authentication attempts (success/failure) are logged for compliance and monitoring.
+- **Metrics**: Per-key usage and rate limit events are exposed via Prometheus metrics.
+- **Key management CLI**: Use the CLI to create, list, and revoke API keys (see [Key Manager CLI](cli/key-manager.ts)).
+
+**Learn more:**
+
+- [Quickstart: API Authentication](specs/002-1-api-authentication/quickstart.md)
+- [Feature Plan](specs/002-1-api-authentication/plan.md)
+- [Specification](specs/002-1-api-authentication/spec.md)
+- [OpenAPI Contract](specs/002-1-api-authentication/contracts/openapi.yaml)
+
+---
+
 ## 🧪 Testing, Linting & Formatting
 
 - **Run all tests:**
@@ -185,9 +204,11 @@ We welcome contributions! Please:
 
 ## 🌟 Useful Links
 
-- [Quickstart Guide](specs/001-1-ai-powered/quickstart.md)
+- [Quickstart Guide: Moderation](specs/001-1-ai-powered/quickstart.md)
+- [Quickstart Guide: API Authentication](specs/002-1-api-authentication/quickstart.md)
 - [Architecture Plan](specs/001-1-ai-powered/plan.md)
-- [API Contract](specs/001-1-ai-powered/contracts/openapi.yaml)
+- [API Contract: Moderation](specs/001-1-ai-powered/contracts/openapi.yaml)
+- [API Contract: Authentication](specs/002-1-api-authentication/contracts/openapi.yaml)
 - [Tasks & Progress](specs/001-1-ai-powered/tasks.md)
 
 ---
